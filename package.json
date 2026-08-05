@@ -1,0 +1,67 @@
+{
+  "name": "window-title",
+  "author": "lumine-code",
+  "version": "1.0.0",
+  "description": "Choose a preset or customize the window title with a Liquid template.",
+  "keywords": [
+    "liquid",
+    "template",
+    "caption",
+    "project-name",
+    "titlebar"
+  ],
+  "repository": "https://github.com/lumine-code/window-title",
+  "bugs": {
+    "url": "https://github.com/lumine-code/window-title/issues"
+  },
+  "license": "MIT",
+  "main": "./lib/main",
+  "engines": {
+    "lumine": "^1.0.0"
+  },
+  "scripts": {
+    "test": "lumine --test spec",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "configSchema": {
+    "template": {
+      "title": "Window Title",
+      "description": "Select the information shown in the window title. Choose `Custom` to use the template below.",
+      "type": "string",
+      "enum": [
+        "Project",
+        "File",
+        "Project and File",
+        "Full Path",
+        "Custom"
+      ],
+      "default": "Project and File"
+    },
+    "custom": {
+      "title": "Custom Template",
+      "description": "Liquid template used when `Window Title` is `Custom`. Variables: `projectTitle`, `projectPaths`, `projectCount`, `projectName`, `projectPath`, `fileName`, `filePath`, `relativeFilePath`, `gitHead`, `appName`, `devMode`, `safeMode`. Supports tags such as `{% if devMode %} [Dev]{% endif %}`. If the template renders empty, the title falls back to `Lumine`.",
+      "type": "string",
+      "default": "{% if projectTitle %}{{ projectTitle }}{% else %}{{ fileName }} — {{ projectPaths }}{% endif %}"
+    }
+  },
+  "consumedServices": {
+    "project-list": {
+      "versions": {
+        "^1.0.0": "consumeProjectList"
+      }
+    }
+  },
+  "dependencies": {
+    "liquidjs": "^10.27.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.2.2",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.6"
+  }
+}
