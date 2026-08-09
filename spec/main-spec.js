@@ -1,31 +1,32 @@
 const os = require("os");
 const path = require("path");
-const { Disposable, Emitter } = require("atom");
+const { Disposable, Emitter } = require("lumine");
 
 describe("Window Title package", () => {
   let setRepresentedFilename;
 
   beforeEach(() => {
     document.title = "Lumine";
-    setRepresentedFilename = spyOn(atom.applicationDelegate, "setRepresentedFilename").andCallFake(
-      () => {},
-    );
+    setRepresentedFilename = spyOn(
+      lumine.applicationDelegate,
+      "setRepresentedFilename",
+    ).andCallFake(() => {});
   });
 
   async function activate(customTemplate) {
-    atom.config.set("window-title.template", "Custom");
-    atom.config.set("window-title.custom", customTemplate);
-    return atom.packages.activatePackage("window-title");
+    lumine.config.set("window-title.template", "Custom");
+    lumine.config.set("window-title.custom", customTemplate);
+    return lumine.packages.activatePackage("window-title");
   }
 
   it("updates the title and represented filename from workspace state", async () => {
     const projectPath = path.dirname(__filename);
     const filePath = __filename;
     const renamedPath = path.join(projectPath, "renamed.js");
-    atom.project.setPaths([projectPath]);
+    lumine.project.setPaths([projectPath]);
 
     await activate("{{ fileName }} — {{ projectName }}");
-    const editor = await atom.workspace.open();
+    const editor = await lumine.workspace.open();
     editor.getBuffer().setPath(filePath);
 
     expect(document.title).toBe(`${path.basename(filePath)} — ${path.basename(projectPath)}`);
@@ -36,28 +37,28 @@ describe("Window Title package", () => {
     expect(document.title).toBe(`renamed.js — ${path.basename(projectPath)}`);
     expect(setRepresentedFilename).toHaveBeenCalledWith(renamedPath);
 
-    atom.config.set("window-title.template", "Full Path");
+    lumine.config.set("window-title.template", "Full Path");
     expect(document.title).toBe(renamedPath);
 
-    atom.config.set("window-title.template", "File");
+    lumine.config.set("window-title.template", "File");
     expect(document.title).toBe("renamed.js");
 
-    atom.config.set("window-title.template", "Project");
+    lumine.config.set("window-title.template", "Project");
     expect(document.title).toBe(path.basename(projectPath));
 
-    atom.config.set("window-title.template", "Project and File");
+    lumine.config.set("window-title.template", "Project and File");
     expect(document.title).toBe(`${path.basename(projectPath)} — renamed.js`);
   });
 
   it("updates when project paths change", async () => {
     const firstProjectPath = os.tmpdir();
     const secondProjectPath = path.resolve(__dirname, "../../..");
-    atom.project.setPaths([firstProjectPath]);
+    lumine.project.setPaths([firstProjectPath]);
     await activate("{{ projectName }} ({{ projectCount }})");
 
     expect(document.title).toBe(`${path.basename(firstProjectPath)} (1)`);
 
-    atom.project.setPaths([secondProjectPath, firstProjectPath]);
+    lumine.project.setPaths([secondProjectPath, firstProjectPath]);
 
     expect(document.title).toBe(`${path.basename(secondProjectPath)} (2)`);
     expect(setRepresentedFilename).toHaveBeenCalledWith(secondProjectPath);
@@ -65,10 +66,10 @@ describe("Window Title package", () => {
 
   it("omits the project-and-file separator when there is no file", async () => {
     const projectPath = path.resolve(__dirname, "..");
-    atom.project.setPaths([projectPath]);
-    atom.config.set("window-title.template", "Project and File");
+    lumine.project.setPaths([projectPath]);
+    lumine.config.set("window-title.template", "Project and File");
 
-    await atom.packages.activatePackage("window-title");
+    await lumine.packages.activatePackage("window-title");
 
     expect(document.title).toBe(path.basename(projectPath));
   });
@@ -83,7 +84,7 @@ describe("Window Title package", () => {
     };
 
     await activate("{{ fileName }}");
-    atom.workspace.getActivePane().activateItem(item);
+    lumine.workspace.getActivePane().activateItem(item);
 
     expect(document.title).toBe("Titled Item");
 
@@ -92,7 +93,7 @@ describe("Window Title package", () => {
 
     expect(document.title).toBe("Renamed Item");
 
-    await atom.packages.deactivatePackage("window-title");
+    await lumine.packages.deactivatePackage("window-title");
     itemTitle = "Ignored Title";
     emitter.emit("did-change-title");
 
@@ -104,7 +105,7 @@ describe("Window Title package", () => {
     await activate("");
     expect(document.title).toBe("Lumine");
 
-    atom.config.set("window-title.custom", "{% if projectTitle %}");
+    lumine.config.set("window-title.custom", "{% if projectTitle %}");
     expect(document.title).toBe("Lumine");
   });
 
