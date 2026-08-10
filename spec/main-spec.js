@@ -10,7 +10,7 @@ describe("Window Title package", () => {
     setRepresentedFilename = spyOn(
       lumine.applicationDelegate,
       "setRepresentedFilename",
-    ).andCallFake(() => {});
+    ).and.callFake(() => {});
   });
 
   async function activate(customTemplate) {
