@@ -10,7 +10,7 @@ Choose a preset or customize the window title with a Liquid template.
 
 ## Installation
 
-To install `window-title` search for _window-title_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/window-title`.
+To install `window-title` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/window-title`.
 
 ## Configuration
 
@@ -57,7 +57,7 @@ Combine the project, relative file path, and current Git branch:
 
 ## Services
 
-- **project-list** (`^1.0.0`): consumed to resolve the `{projectTitle}` placeholder from the current window's matched project.
+- `project-list`: consumed to resolve the `{projectTitle}` placeholder from the current window's matched project.
 
 ## Contributing
 
