@@ -64,6 +64,18 @@ describe("Window Title package", () => {
     expect(setRepresentedFilename).toHaveBeenCalledWith(secondProjectPath);
   });
 
+  it("activates and deactivates when the core has no URI-change event", async () => {
+    const subscribe = lumine.workspace.onDidChangePaneItemURI;
+    lumine.workspace.onDidChangePaneItemURI = undefined;
+    try {
+      await activate("{{ appName }}");
+      expect(document.title).toBe("Lumine");
+      await lumine.packages.deactivatePackage("window-title");
+    } finally {
+      lumine.workspace.onDidChangePaneItemURI = subscribe;
+    }
+  });
+
   it("omits the project-and-file separator when there is no file", async () => {
     const projectPath = path.resolve(__dirname, "..");
     lumine.project.setPaths([projectPath]);
@@ -107,6 +119,59 @@ describe("Window Title package", () => {
 
     lumine.config.set("window-title.custom", "{% if projectTitle %}");
     expect(document.title).toBe("Lumine");
+  });
+
+  it("rebinds repository status when the active item changes resource", async () => {
+    const pack = await activate("{{ fileName }} {{ gitHead }}");
+    const first = new Emitter();
+    const second = new Emitter();
+    const resource = new Emitter();
+    let filePath = path.join(os.tmpdir(), "first.png");
+    let branch = "first-branch";
+    const firstDisposed = jasmine.createSpy("first repository disposed");
+    const repositories = [
+      {
+        getShortHead: () => "first-branch",
+        onDidChangeStatusSnapshot(callback) {
+          const subscription = first.on("status", callback);
+          return new Disposable(() => {
+            subscription.dispose();
+            firstDisposed();
+          });
+        },
+      },
+      {
+        getShortHead: () => branch,
+        onDidChangeStatusSnapshot: (callback) => second.on("status", callback),
+      },
+    ];
+    spyOn(pack.mainModule, "currentRepository").and.callFake(() =>
+      filePath.endsWith("first.png") ? repositories[0] : repositories[1],
+    );
+    const item = {
+      element: document.createElement("div"),
+      getTitle: () => path.basename(filePath),
+      getPath: () => filePath,
+      getURI: () => filePath,
+      onDidChangeURI: (callback) => resource.on("uri", callback),
+    };
+    await lumine.workspace.open(item, { pending: true });
+    expect(document.title).toBe("first.png first-branch");
+
+    const oldURI = filePath;
+    filePath = path.join(os.tmpdir(), "second.png");
+    branch = "second-branch";
+    resource.emit("uri", { oldURI, newURI: filePath });
+    expect(firstDisposed).toHaveBeenCalled();
+    expect(document.title).toBe("second.png second-branch");
+    expect(setRepresentedFilename).toHaveBeenCalledWith(filePath);
+
+    branch = "updated-branch";
+    second.emit("status");
+    expect(document.title).toBe("second.png updated-branch");
+    first.dispose();
+    second.dispose();
+    resource.dispose();
   });
 
   it("updates when the current project-list project changes", async () => {
