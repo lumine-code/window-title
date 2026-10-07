@@ -121,8 +121,25 @@ describe("Window Title package", () => {
     expect(document.title).toBe("Lumine");
   });
 
+  it("picks up a repository discovered after the active file's title was rendered", async () => {
+    const editor = await lumine.workspace.open(__filename);
+    let repository = null;
+    spyOn(lumine.repositories, "getForPath").and.callFake(() => repository);
+    spyOn(lumine.repositories, "resolveForPath").and.callFake(async () => repository);
+    spyOn(lumine.repositories, "retain").and.callFake(() => new Disposable());
+    await activate("{{ fileName }} {{ gitHead }}");
+    repository = {
+      getShortHead: () => "new-branch",
+      getStatusSnapshot: () => ({ initialized: true }),
+      onDidChangeStatusSnapshot: () => new Disposable(),
+      onDidDestroy: () => new Disposable(),
+    };
+    lumine.repositories.emitter.emit("did-change", {});
+    expect(document.title).toBe(`${path.basename(editor.getPath())} new-branch`);
+  });
+
   it("rebinds repository status when the active item changes resource", async () => {
-    const pack = await activate("{{ fileName }} {{ gitHead }}");
+    await activate("{{ fileName }} {{ gitHead }}");
     const first = new Emitter();
     const second = new Emitter();
     const resource = new Emitter();
@@ -145,9 +162,13 @@ describe("Window Title package", () => {
         onDidChangeStatusSnapshot: (callback) => second.on("status", callback),
       },
     ];
-    spyOn(pack.mainModule, "currentRepository").and.callFake(() =>
-      filePath.endsWith("first.png") ? repositories[0] : repositories[1],
-    );
+    spyOn(lumine.repositories, "observeForPath").and.callFake((getPath, callback) => {
+      callback(filePath.endsWith("first.png") ? repositories[0] : repositories[1], {
+        path: getPath(),
+        ready: true,
+      });
+      return new Disposable();
+    });
     const item = {
       element: document.createElement("div"),
       getTitle: () => path.basename(filePath),
