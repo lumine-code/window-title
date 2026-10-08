@@ -1,17 +1,41 @@
 const os = require("os");
 const path = require("path");
-const { Disposable, Emitter } = require("lumine");
+const { CompositeDisposable, Disposable, Emitter } = require("lumine");
 
 describe("Window Title package", () => {
   let setRepresentedFilename;
+  let services;
 
   beforeEach(() => {
     document.title = "Lumine";
+    services = new CompositeDisposable();
     setRepresentedFilename = spyOn(
       lumine.applicationDelegate,
       "setRepresentedFilename",
     ).and.callFake(() => {});
   });
+
+  afterEach(() => services.dispose());
+
+  function projectProvider(title) {
+    const emitter = new Emitter();
+    const provider = {
+      getCurrentProject: () => ({ title }),
+      onDidChangeCurrentProject: jasmine
+        .createSpy("subscribe")
+        .and.callFake((callback) => emitter.on("change", callback)),
+      updateView: jasmine.createSpy("index"),
+      change: () => emitter.emit("change"),
+    };
+    services.add(new Disposable(() => emitter.dispose()));
+    return provider;
+  }
+
+  function publish(provider) {
+    const edge = lumine.packages.serviceHub.provide("project-list", "1.0.0", provider);
+    services.add(edge);
+    return edge;
+  }
 
   async function activate(customTemplate) {
     lumine.config.set("window-title.template", "Custom");
@@ -218,5 +242,99 @@ describe("Window Title package", () => {
 
     serviceDisposable.dispose();
     expect(document.title).toBe("Lumine");
+  });
+
+  it("indexes a replacement provider and keeps it when the older edge retires", async () => {
+    await activate("{{ projectTitle }}");
+    const first = projectProvider("First");
+    const second = projectProvider("Second");
+    const older = publish(first);
+    publish(second);
+    expect(first.updateView).toHaveBeenCalledTimes(1);
+    expect(second.updateView).toHaveBeenCalledTimes(1);
+    older.dispose();
+    expect(document.title).toBe("Second");
+    first.change();
+    expect(document.title).toBe("Second");
+  });
+
+  it("falls back to the remaining provider without indexing it twice", async () => {
+    await activate("{{ projectTitle }}");
+    const first = projectProvider("First");
+    publish(first);
+    const newest = publish(projectProvider("Second"));
+    newest.dispose();
+    expect(document.title).toBe("First");
+    expect(first.updateView).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares duplicate payload subscriptions until the last edge retires", async () => {
+    const pack = await activate("{{ projectTitle }}");
+    const provider = projectProvider("Shared");
+    const first = publish(provider);
+    const second = publish(provider);
+    expect(provider.onDidChangeCurrentProject).toHaveBeenCalledTimes(1);
+    expect(provider.updateView).toHaveBeenCalledTimes(1);
+    first.dispose();
+    expect(document.title).toBe("Shared");
+    const update = spyOn(pack.mainModule, "updateTitle").and.callThrough();
+    provider.change();
+    expect(update).toHaveBeenCalledTimes(1);
+    second.dispose();
+    expect(document.title).toBe("Lumine");
+    update.calls.reset();
+    provider.change();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("releases manual edges at deactivation and ignores them in the next activation", async () => {
+    let pack = await activate("{{ projectTitle }}");
+    const provider = projectProvider("Shared");
+    const old = pack.mainModule.consumeProjectList(provider);
+    services.add(old);
+    await lumine.packages.deactivatePackage("window-title");
+    pack = await activate("{{ projectTitle }}");
+    services.add(pack.mainModule.consumeProjectList(provider));
+    old.dispose();
+    expect(document.title).toBe("Shared");
+    const update = spyOn(pack.mainModule, "updateTitle").and.callThrough();
+    provider.change();
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes a listener returned after a synchronous deactivation", async () => {
+    const pack = await activate("{{ projectTitle }}");
+    const disposed = jasmine.createSpy("disposed");
+    const provider = projectProvider("Retired");
+    provider.onDidChangeCurrentProject.and.callFake(() => {
+      pack.mainModule.deactivate();
+      return new Disposable(disposed);
+    });
+    services.add(pack.mainModule.consumeProjectList(provider));
+    expect(disposed).toHaveBeenCalledTimes(1);
+    expect(document.title).toBe("Lumine");
+  });
+
+  it("restores the live provider when a replacement subscription fails", async () => {
+    const pack = await activate("{{ projectTitle }}");
+    publish(projectProvider("First"));
+    const provider = projectProvider("Broken");
+    provider.onDidChangeCurrentProject.and.throwError("subscription failed");
+    expect(() => pack.mainModule.consumeProjectList(provider)).toThrowError("subscription failed");
+    expect(document.title).toBe("First");
+  });
+
+  it("retains the newest provider consumed during another provider's subscription", async () => {
+    const pack = await activate("{{ projectTitle }}");
+    const older = projectProvider("Older");
+    const newer = projectProvider("Newer");
+    older.onDidChangeCurrentProject.and.callFake(() => {
+      services.add(pack.mainModule.consumeProjectList(newer));
+      return new Disposable();
+    });
+    services.add(pack.mainModule.consumeProjectList(older));
+    expect(document.title).toBe("Newer");
+    expect(newer.updateView).toHaveBeenCalledTimes(1);
+    expect(older.updateView).not.toHaveBeenCalled();
   });
 });
