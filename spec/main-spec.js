@@ -115,6 +115,7 @@ describe("Window Title package", () => {
     const emitter = new Emitter();
     const item = {
       element: document.createElement("div"),
+      isSingleton: () => true,
       getTitle: () => itemTitle,
       onDidChangeTitle: (callback) => emitter.on("did-change-title", callback),
     };
@@ -195,6 +196,7 @@ describe("Window Title package", () => {
     });
     const item = {
       element: document.createElement("div"),
+      isSingleton: () => true,
       getTitle: () => path.basename(filePath),
       getPath: () => filePath,
       getURI: () => filePath,
