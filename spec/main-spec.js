@@ -40,7 +40,9 @@ describe("Window Title package", () => {
   async function activate(customTemplate) {
     lumine.config.set("window-title.template", "Custom");
     lumine.config.set("window-title.custom", customTemplate);
-    return lumine.packages.activatePackage("window-title");
+    const pack = await lumine.packages.activatePackage("window-title");
+    await pack.mainModule.updateTemplate();
+    return pack;
   }
 
   it("updates the title and represented filename from workspace state", async () => {

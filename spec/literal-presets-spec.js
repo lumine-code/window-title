@@ -53,10 +53,11 @@ describe("Window Title literal presets", () => {
     expect(main.render()).toBe(`${path.basename(directory)} — --report [ ].txt`);
   });
 
-  it("retains empty placeholder and separator cleanup for Custom templates", () => {
+  it("retains empty placeholder and separator cleanup for Custom templates", async () => {
     editor.getBuffer().setPath(path.join(directory, "report.txt"));
     lumine.config.set("window-title.template", "Custom");
     lumine.config.set("window-title.custom", "{{ fileName }} [] () —");
+    await main.updateTemplate();
     expect(main.render()).toBe("report.txt");
   });
 });
