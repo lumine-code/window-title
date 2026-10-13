@@ -8,6 +8,8 @@ Choose a preset or customize the window title with a Liquid template.
 - **Project awareness**: shows the matching project title from the `project-list` package when the window's roots match a saved project.
 - **Safe fallback**: if the template renders empty or fails, the title falls back to `Lumine`.
 
+![Identify the current project and file in the window title.](.github/demo.png)
+
 ## Installation
 
 To install `window-title` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/window-title`.
